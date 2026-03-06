@@ -1,0 +1,126 @@
+{{- $root := . }}
+{{- range $modelName, $model := .Values.models }}
+{{- if $model.enabled }}
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  annotations:
+    {{- if $root.Values.endpoint.auth.enabled }}
+    security.opendatahub.io/enable-auth: 'true'
+    {{- end }}
+    {{- if eq $root.Values.deploymentMode "Serverless" }}
+    serving.kserve.io/deploymentMode: Serverless
+    serving.knative.openshift.io/enablePassthrough: "true"
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/rewriteAppHTTPProbers: "true"
+    {{- else }}
+    serving.kserve.io/deploymentMode: RawDeployment
+    {{- end }}
+    {{- if eq $root.Values.servingTopology "multiNode" }}
+    serving.kserve.io/autoscalerClass: external
+    {{- end }}
+    serving.kserve.io/stop: {{ $root.Values.scaling.stopped | quote }}
+  name: {{ $modelName }}
+  labels:
+    {{- if eq $root.Values.servingTopology "singleNode" }}
+    opendatahub.io/dashboard: "true"
+    {{- end }}
+    app.kubernetes.io/name: {{ $root.Chart.Name }}
+    app.kubernetes.io/instance: {{ $root.Release.Name }}
+    app.kubernetes.io/managed-by: {{ $root.Release.Service }}
+    {{- if not $root.Values.endpoint.externalRoute.enabled }}
+    {{- if eq $root.Values.deploymentMode "Serverless" }}
+    networking.knative.dev/visibility: cluster-local
+    {{- end }}
+    {{- end }}
+    {{- if $root.Values.endpoint.externalRoute.enabled }}
+    {{- if eq $root.Values.deploymentMode "RawDeployment" }}
+    networking.kserve.io/visibility: exposed
+    {{- end }}
+    {{- end }}
+spec:
+  predictor:
+    minReplicas: {{ $model.minReplicas | default $root.Values.scaling.minReplicas }}
+    {{- if eq $root.Values.servingTopology "singleNode" }}
+    {{- $maxReplicas := $model.maxReplicas | default $root.Values.scaling.maxReplicas }}
+    {{- if gt (int $maxReplicas) 0 }}
+    maxReplicas: {{ $maxReplicas }}
+    {{- end }}
+    {{- if $root.Values.scaling.scaleMetric }}
+    scaleMetric: {{ $root.Values.scaling.scaleMetric }}
+    {{- end }}
+    {{- if $root.Values.scaling.scaleTarget }}
+    scaleTarget: {{ $root.Values.scaling.scaleTarget }}
+    {{- end }}
+    {{- end }}
+    {{- if eq $root.Values.deploymentMode "Serverless" }}
+    annotations:
+      serving.knative.dev/progress-deadline: {{ $root.Values.scaling.serverless.timeout | default "30m" }}
+      {{- if $root.Values.scaling.serverless.retentionPeriod }}
+      autoscaling.knative.dev/scale-to-zero-pod-retention-period: {{ $root.Values.scaling.serverless.retentionPeriod }}
+      {{- end }}
+    {{- end }}
+    {{- if eq $root.Values.deploymentMode "RawDeployment" }}
+    deploymentStrategy:
+      {{- toYaml $root.Values.scaling.rawDeployment.deploymentStrategy | nindent 6 }}
+    {{- end }}
+    model:
+      args:
+        - --served-model-name={{ $model.id }}
+        {{- with $model.args }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- if $model.env }}
+      env:
+        {{- toYaml $model.env | nindent 8 }}
+      {{- end }}
+      {{- if $root.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $root.Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      modelFormat:
+        name: vLLM
+      name: ''
+      resources:
+        {{- toYaml $model.resources | nindent 8 }}
+      {{- if $root.Values.servingRuntime.useExisting }}
+      runtime: {{ $root.Values.servingRuntime.useExisting }}
+      {{- else }}
+      runtime: {{ $root.Values.servingRuntime.name | default "vllm-runtime" }}
+      {{- end }}
+      {{- with $model.storage }}
+      {{- if eq (lower .mode) "uri" }}
+      storageUri: {{ .uri }}
+      {{- else if eq (lower .mode) "pvc" }}
+      storageUri: pvc://{{ .pvcName }}/{{ .path }}
+      {{- else if eq (lower .mode) "s3"}}
+      storage:
+        key: {{ .s3.key }}
+        path: {{ .s3.path }}
+      {{- end }}
+      {{- else }}
+      {{/* Default: Use HuggingFace URI */}}
+      storageUri: hf://{{ $model.id }}
+      {{- end }}
+    {{- if $root.Values.tolerations }}
+    tolerations:
+      {{- toYaml $root.Values.tolerations | nindent 8 }}
+    {{- end }}
+    {{- with $root.Values.imagePullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- if eq $root.Values.servingTopology "multiNode" }}
+    workerSpec:
+      pipelineParallelSize: {{ $root.Values.multiNode.pipelineParallelSize }}
+      tensorParallelSize: {{ $root.Values.multiNode.tensorParallelSize }}
+      tolerations:
+        {{- toYaml $root.Values.tolerations | nindent 8 }}
+      containers:
+        - name: worker-container
+          resources:
+            {{- toYaml $model.resources | nindent 12 }}
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,48 @@
+{{- if not .Values.servingRuntime.useExisting }}
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: {{ .Values.servingRuntime.name | default "vllm-runtime" }}
+  annotations:
+    opendatahub.io/apiProtocol: REST
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+    opendatahub.io/template-display-name: vLLM ServingRuntime for KServe
+  labels:
+    opendatahub.io/dashboard: "true"
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: '8080'
+  containers:
+    - name: kserve-container
+      image: {{ .Values.image.image }}:{{ .Values.image.tag }}
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+      command:
+        {{- toYaml .Values.servingRuntime.command | nindent 8 }}
+      args:
+        {{- toYaml .Values.servingRuntime.args | nindent 8 }}
+      env:
+        {{- toYaml .Values.servingRuntime.env | nindent 8 }}
+      volumeMounts:
+        - mountPath: /dev/shm
+          name: shm
+        - mountPath: /chat-templates
+          name: chat-templates
+  multiModel: false
+  supportedModelFormats:
+    - autoSelect: true
+      name: vLLM
+  volumes:
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: {{ .Values.servingRuntime.shmSize }}
+    - name: chat-templates
+      configMap:
+        name: vllm-chat-templates
+{{- end }}

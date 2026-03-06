@@ -1,0 +1,183 @@
+# -- deploymentMode determines if the model will be deployed using KNative Serverless or a standard k8s Deployment.  Must be one of Serverless or RawDeployment
+deploymentMode: RawDeployment
+
+secret:
+  enabled: true
+  hf_token: "" #set via --set or helm secrets
+
+# -- servingTopology determines if the model will be deployed using a single node or a multi-node topology.  Must be one of singleNode or multiNode
+servingTopology: singleNode
+
+image:
+  # -- The vLLM model server image
+  image: 'registry.redhat.io/rhoai/odh-vllm-cuda-rhel9'
+
+  # -- The tag or sha for the model server image
+  tag: v2.25.0-1759340926
+
+endpoint:
+  externalRoute:
+    # -- Creates an externally accessible route for the model endpoint
+    enabled: true
+  auth:
+    # -- Secures the model endpoint and creates a role to grant permissions to service accounts
+    enabled: false
+    # -- Creates service accounts with permissions to access the secured endpoint
+    serviceAccounts: []
+      # - name: my-service-account
+      # - name: existing-service-account
+      #   create: false
+      # - name: existing-in-another-namespace
+      #   namespace: my-other-namespace
+      #   create: false
+      # - name: no-token
+      #   createLegacyToken: false
+
+scaling:
+  # -- Sets the model server to a stopped state and spins down all pods.
+  stopped: false
+
+  # -- The minimum number of replicas to be deployed.  Set to 0 to enable scale to zero capabilities with Serverless deployments.
+  minReplicas: 1
+
+  # -- The maximum number of replicas to be deployed
+  maxReplicas: 1
+
+  # -- The scaling metric used by KServe to trigger scaling a new pod.  Serverless deployments can be "concurrency", "rps", "cpu", or "memory", while RawDeployments can only utilize "cpu" and "memory".  "concurrency" is used by default for Serverless and "cpu" is used by default for RawDeployments.
+  scaleMetric: ""
+
+  # -- The scaling target used by KNative to trigger scaling a new pod.  Default is 100 when not set.
+  scaleTarget: ""
+
+  serverless:
+    # -- The timeout value determines how long before KNative marks the deployments as failed
+    timeout: 30m
+    # -- The retentionPeriod determines the minimum amount of time that the last pod will remain active after the Autoscaler decides to scale pods to zero.
+    retentionPeriod: ""
+
+  rawDeployment:
+    # -- The deployment strategy to use to replace existing pods with new ones.
+    deploymentStrategy:
+      # Can be type of RollingUpdate or Recreate
+      type: RollingUpdate
+
+# -- The tolerations to be applied to the model server pod.
+tolerations:
+  - effect: NoSchedule
+    key: nvidia.com/gpu
+    operator: Exists
+
+# -- Node selector for the vLLM pod
+nodeSelector: {}
+
+# -- This is for the secretes for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets: []
+
+servingRuntime:
+  # -- Overwrite the default name for the ServingRuntime.
+  name: ""
+  # -- Use an existing servingRuntime instead of creating one.  If useExisting value is set, no servingRuntime will be created and the InferenceService will be configured to use the value set here as the runtime name.
+  useExisting: ""
+
+  # -- The size of the emptyDir used for shared memory.  You most likely don't need to adjust this.
+  shmSize: 2Gi
+  # -- The arguments used to start vLLM
+
+  command:
+    - python
+    - '-m'
+    - vllm.entrypoints.openai.api_server
+
+  args:
+    - --port=8080
+    - --model=/mnt/models
+
+  env:
+    - name: HF_HOME
+      value: /tmp/hf_home
+    - name: HF_HUB_OFFLINE
+      value: "0"
+    - name: HF_TOKEN  # If needed for private models
+      valueFrom:
+        secretKeyRef:
+          name: huggingface-secret
+          key: token
+
+
+models:
+  nim-llm:
+    id: nvidia/Llama-3_3-Nemotron-Super-49B-v1_5
+    enabled: true
+    minReplicas: 1
+    resources:
+      limits:
+        cpu: "8"
+        memory: 32Gi
+        nvidia.com/gpu: 4
+      requests:
+        cpu: "4"
+        memory: 16Gi
+        nvidia.com/gpu: 4
+    args:
+      - --tensor-parallel-size=4
+      - --max-num-seqs="32"
+      - --trust-remote-code
+      - '--limit-mm-per-prompt={"image": 4}'
+  
+  nemoretriever-embedding-ms:
+    id: nvidia/llama-nemotron-embed-1b-v2
+    enabled: true
+    minReplicas: 1
+    resources:
+      limits:
+        cpu: "8"
+        memory: 32Gi
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "4"
+        memory: 16Gi
+        nvidia.com/gpu: 1
+    args:
+      - --max-num-seqs="32"
+      - --trust-remote-code
+      - '--limit-mm-per-prompt={"image": 4}'
+  
+  nemoretriever-ranking-ms:
+    id: nvidia/llama-nemotron-rerank-1b-v2
+    enabled: true
+    minReplicas: 1
+    resources:
+      limits:
+        cpu: "8"
+        memory: 32Gi
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "4"
+        memory: 16Gi
+        nvidia.com/gpu: 1
+    args:
+      - --trust-remote-code
+      - --max-model-len="14336"
+      - --max-num-seqs="32"
+      - --enable-auto-tool-choice
+      - --chat-template=/chat-templates/tool_chat_template_llama3.2_json.jinja
+      - --tool-call-parser=llama3_json
+
+  nim-vlm:
+    id: nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16
+    enabled: true
+    minReplicas: 1
+    resources:
+      limits:
+        cpu: "8"
+        memory: 32Gi
+        nvidia.com/gpu: 1
+      requests:
+        cpu: "4"
+        memory: 16Gi
+        nvidia.com/gpu: 1
+    args:
+      - --max-model-len="8192"
+      - --max-num-seqs="16"
+      - --trust-remote-code
+      - '--limit-mm-per-prompt={"image": 4}'

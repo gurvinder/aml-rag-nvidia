@@ -1,0 +1,8 @@
+---
+apiVersion: v2
+name: model-serving
+description: >
+  A helm chart to deploy models for NVIDIA RAG blueprint
+type: application
+version: 0.1.0
+appVersion: 0.1.0

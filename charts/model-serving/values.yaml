@@ -1,7 +1,7 @@
 deploymentMode: RawDeployment
 
 secret:
-  enabled: true
+  create: true
   hf_token: "" #set via --set or helm secrets
 
 # -- servingTopology determines if the model will be deployed using a single node or a multi-node topology.  Must be one of singleNode or multiNode

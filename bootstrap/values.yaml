@@ -10,3 +10,7 @@ bootstrap:
 ingest:
   nvidiaApiKey:
     create: false
+
+model-serving:
+  secret:
+    create: false

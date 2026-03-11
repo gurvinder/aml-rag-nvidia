@@ -94,7 +94,7 @@ servingRuntime:
       valueFrom:
         secretKeyRef:
           name: huggingface-secret
-          key: token
+          key: HF_TOKEN
 
 
 models:

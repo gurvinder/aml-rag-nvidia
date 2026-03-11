@@ -9,10 +9,10 @@ servingTopology: singleNode
 
 image:
   # -- The vLLM model server image
-  image: 'registry.redhat.io/rhoai/odh-vllm-cuda-rhel9'
+  image: 'registry.redhat.io/rhaiis/vllm-cuda-rhel9'
 
   # -- The tag or sha for the model server image
-  tag: v2.25.0-1759340926
+  tag: 3.3.0
 
 endpoint:
   externalRoute:

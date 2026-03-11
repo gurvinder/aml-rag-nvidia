@@ -6,17 +6,7 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   annotations:
-    {{- if $root.Values.endpoint.auth.enabled }}
-    security.opendatahub.io/enable-auth: 'true'
-    {{- end }}
-    {{- if eq $root.Values.deploymentMode "Serverless" }}
-    serving.kserve.io/deploymentMode: Serverless
-    serving.knative.openshift.io/enablePassthrough: "true"
-    sidecar.istio.io/inject: "true"
-    sidecar.istio.io/rewriteAppHTTPProbers: "true"
-    {{- else }}
     serving.kserve.io/deploymentMode: RawDeployment
-    {{- end }}
     {{- if eq $root.Values.servingTopology "multiNode" }}
     serving.kserve.io/autoscalerClass: external
     {{- end }}
@@ -29,16 +19,6 @@ metadata:
     app.kubernetes.io/name: {{ $root.Chart.Name }}
     app.kubernetes.io/instance: {{ $root.Release.Name }}
     app.kubernetes.io/managed-by: {{ $root.Release.Service }}
-    {{- if not $root.Values.endpoint.externalRoute.enabled }}
-    {{- if eq $root.Values.deploymentMode "Serverless" }}
-    networking.knative.dev/visibility: cluster-local
-    {{- end }}
-    {{- end }}
-    {{- if $root.Values.endpoint.externalRoute.enabled }}
-    {{- if eq $root.Values.deploymentMode "RawDeployment" }}
-    networking.kserve.io/visibility: exposed
-    {{- end }}
-    {{- end }}
 spec:
   predictor:
     minReplicas: {{ $model.minReplicas | default $root.Values.scaling.minReplicas }}
@@ -54,17 +34,8 @@ spec:
     scaleTarget: {{ $root.Values.scaling.scaleTarget }}
     {{- end }}
     {{- end }}
-    {{- if eq $root.Values.deploymentMode "Serverless" }}
-    annotations:
-      serving.knative.dev/progress-deadline: {{ $root.Values.scaling.serverless.timeout | default "30m" }}
-      {{- if $root.Values.scaling.serverless.retentionPeriod }}
-      autoscaling.knative.dev/scale-to-zero-pod-retention-period: {{ $root.Values.scaling.serverless.retentionPeriod }}
-      {{- end }}
-    {{- end }}
-    {{- if eq $root.Values.deploymentMode "RawDeployment" }}
     deploymentStrategy:
       {{- toYaml $root.Values.scaling.rawDeployment.deploymentStrategy | nindent 6 }}
-    {{- end }}
     model:
       args:
         - --served-model-name={{ $model.id }}

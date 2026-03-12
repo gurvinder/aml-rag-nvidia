@@ -167,6 +167,8 @@ helm install ingest ./charts/ingest \
   --set nvidiaApiKey.create=false \
   --namespace rag
 
+https://rag-frontend-rag.apps.7f72a1d8-6770-218b-52f7-75fd7ddb7e3c.nvidialaunchpad.com/
+
 
 
 

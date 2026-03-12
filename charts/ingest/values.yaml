@@ -232,10 +232,9 @@ nv-ingest:
         tag: v2.6.5-gpu
     etcd:
       enabled: true
-      # Let OpenShift assign UID/GID from allowed range
-      podSecurityContext:
-        runAsUser: null
-        fsGroup: null
+      # Remove hardcoded security context for OpenShift compatibility
+      podSecurityContext: {}
+      containerSecurityContext: {}
     standalone:
       resources:
         limits:

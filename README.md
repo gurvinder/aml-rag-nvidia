@@ -161,3 +161,12 @@ stringData:
 EOF
 ```
 
+helm dependency update charts/ingest
+
+helm install ingest ./charts/ingest \
+  --set nvidiaApiKey.create=false \
+  --namespace rag
+
+
+
+

@@ -46,12 +46,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: {{ .Values.imagePullSecret.name }}
-              key: password
+              key: NGC_API_KEY
         - name: NVIDIA_API_KEY
           valueFrom:
             secretKeyRef:
               name: {{ .Values.imagePullSecret.name }}
-              key: password
+              key: NVIDIA_API_KEY
         {{- if .Values.extraEnvFrom }}
         envFrom:
         {{- toYaml .Values.extraEnvFrom | nindent 8 }}

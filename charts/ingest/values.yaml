@@ -92,7 +92,7 @@ ingestor-server:
     # Object storage - when OBC enabled, MINIO_* vars come from OBC Secret/ConfigMap via envFrom
     MINIO_SECURE: "True"
     # Embeddings - llm-service vLLM uses port 8080
-    APP_EMBEDDINGS_SERVERURL: "nemoretriever-embedding-ms:8080"
+    APP_EMBEDDINGS_SERVERURL: "nemoretriever-embedding-ms-predictor:8080"
     APP_EMBEDDINGS_MODELNAME: "nvidia/llama-nemotron-embed-1b-v2"
     APP_EMBEDDINGS_DIMENSIONS: "2048"
     # NV-Ingest - service name from nv-ingest subchart (service.name: nv-ingest)
@@ -105,14 +105,14 @@ ingestor-server:
     APP_NVINGEST_EXTRACTCHARTS: "True"
     APP_NVINGEST_EXTRACTIMAGES: "False"
     APP_NVINGEST_CAPTIONMODELNAME: "nvidia/nemotron-nano-12b-v2-vl"
-    APP_NVINGEST_CAPTIONENDPOINTURL: "nim-vlm:8080"
+    APP_NVINGEST_CAPTIONENDPOINTURL: "nim-vlm-predictor:8080"
     APP_NVINGEST_SAVETODISK: "False"
     APP_NVINGEST_CHUNKSIZE: "512"
     APP_NVINGEST_CHUNKOVERLAP: "150"
     APP_NVINGEST_ENABLEPDFSPLITTER: "True"
     # Summary LLM - llm-service
     SUMMARY_LLM: "nvidia/llama-3.3-nemotron-super-49b-v1.5"
-    SUMMARY_LLM_SERVERURL: "nim-llm:8080"
+    SUMMARY_LLM_SERVERURL: "nim-llm-predictor:8080"
     SUMMARY_LLM_MAX_CHUNK_LENGTH: "9000"
     SUMMARY_CHUNK_OVERLAP: "400"
     SUMMARY_LLM_TEMPERATURE: "0.0"
@@ -189,7 +189,7 @@ nv-ingest:
     RAY_num_server_call_thread: "1"
     RAY_worker_num_grpc_internal_threads: "1"
     # Point to llm-service models (port 8080)
-    EMBEDDING_NIM_ENDPOINT: "http://nemoretriever-embedding-ms:8080"
+    EMBEDDING_NIM_ENDPOINT: "http://nemoretriever-embedding-ms-predictor:8080"
     EMBEDDING_NIM_MODEL_NAME: "nvidia/llama-nemotron-embed-1b-v2"
 
     MESSAGE_CLIENT_HOST: "llm-service-redis-master"
@@ -198,7 +198,7 @@ nv-ingest:
     # OBC Secret/ConfigMap injected via extraEnvFrom; provides AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, BUCKET_HOST, BUCKET_PORT, BUCKET_NAME
     MILVUS_ENDPOINT: "http://milvus:19530"
     VLM_CAPTION_MODEL_NAME: nvidia/nemotron-nano-12b-v2-vl
-    VLM_CAPTION_ENDPOINT: "http://nim-vlm:8080/v1/chat/completions"
+    VLM_CAPTION_ENDPOINT: "http://nim-vlm-predictor:8080/v1/chat/completions"
     COMPONENTS_TO_READY_CHECK: "ALL"
     # NGC_API_KEY, NVIDIA_API_KEY from nvidiaApiKey secret via extraEnvFrom (ngc-api)
     

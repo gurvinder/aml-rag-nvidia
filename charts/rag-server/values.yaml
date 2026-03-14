@@ -64,7 +64,7 @@ envVars:
   MINIO_SECURE: "True"
 
   ##===Redis configurations for summary status tracking===
-  REDIS_HOST: "__RELEASE_NAME__-redis-master"  # Set dynamically; matches nv-ingest redis
+  REDIS_HOST: "ingest-redis-master"  # Set dynamically; matches nv-ingest redis
   REDIS_PORT: "6379"
   REDIS_DB: "0"
 

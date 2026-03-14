@@ -192,7 +192,8 @@ nv-ingest:
     EMBEDDING_NIM_ENDPOINT: "http://nemoretriever-embedding-ms-predictor:8080/v1"
     EMBEDDING_NIM_MODEL_NAME: "nvidia/llama-nemotron-embed-1b-v2"
 
-    MESSAGE_CLIENT_HOST: "__RELEASE_NAME__-redis-master"
+    # Ensure the below variable matches your release name (must be hardcoded due to nv-ingest subchart)
+    MESSAGE_CLIENT_HOST: "ingest-redis-master"
     MESSAGE_CLIENT_PORT: 6379
     MESSAGE_CLIENT_TYPE: "redis"
     # OBC Secret/ConfigMap injected via extraEnvFrom; provides AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, BUCKET_HOST, BUCKET_PORT, BUCKET_NAME

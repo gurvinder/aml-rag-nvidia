@@ -38,7 +38,7 @@ spec:
         env:
         {{- range $key, $value := .Values.envVars }}
         - name: {{ $key }}
-          value: {{ $value | quote }}
+          value: "{{ $value | replace "__RELEASE_NAME__" $.Release.Name | replace "__RELEASE_NAMESPACE__" $.Release.Namespace }}"
         {{- end }}
         # NGC API key from secret
         - name: NGC_API_KEY

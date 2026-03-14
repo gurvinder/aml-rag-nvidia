@@ -81,7 +81,7 @@ spec:
             - |
               export MINIO_ACCESSKEY="$${AWS_ACCESS_KEY_ID}"
               export MINIO_SECRETKEY="$${AWS_SECRET_ACCESS_KEY}"
-              export MINIO_ENDPOINT="$${BUCKET_HOST}:$${BUCKET_PORT}"
+              export MINIO_ENDPOINT="$${BUCKET_HOST}:80"
               export MINIO_BUCKET="$${BUCKET_NAME}"
               export NVINGEST_MINIO_BUCKET="$${BUCKET_NAME}"
               exec uvicorn nvidia_rag.ingestor_server.server:app --port 8082 --host 0.0.0.0 --workers {{ $cfg.server.workers }}

@@ -161,13 +161,20 @@ stringData:
 EOF
 ```
 
+# ingest chart when ngc key is pre-deployed as a secret
 helm dependency update charts/ingest
-
 helm install ingest ./charts/ingest \
   --set nvidiaApiKey.create=false \
   --namespace rag
 
 https://rag-frontend-rag.apps.7f72a1d8-6770-218b-52f7-75fd7ddb7e3c.nvidialaunchpad.com/
+
+
+# model-serving chart
+export HF_TOKEN=
+helm install model-serving ./charts/model-serving \
+  --set secret.hf_token=$HF_TOKEN \
+  --namespace rag
 
 
 

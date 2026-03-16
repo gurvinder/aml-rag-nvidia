@@ -1,181 +1,166 @@
-# LLM Service Helm Chart
+# Streamline AML Investigation Workflows with RAG and NVIDIA
 
-vLLM-based LLM serving with RAG ingest (nv-ingest, Milvus, ingestor-server).
+Build anti-money laundering investigation workflows with RAG and NVIDIA models on Red Hat AI, with built-in inference, governance, observability, and more.
 
-## Prerequisites
+## Table of contents
 
-- OpenShift cluster with GPU nodes
-- ODF (OpenShift Data Foundation) with NooBaa object storage
-- NGC API key and HuggingFace token
+- [Detailed Description](#detailed-description)
+  - [See it in Action](#see-it-in-action)
+  - [Architecture Diagrams](#architecture-diagrams)
+- [Requirements](#requirements)
+  - [Minimum Hardware Requirements](#minimum-hardware-requirements)
+  - [Minimum Software Requirements](#minimum-software-requirements)
+  - [Required User Permissions](#required-user-permissions)
+- [Deploy](#deploy)
+  - [Prerequisites](#prerequisites)
+  - [Install](#install)
+  - [Delete](#delete)
+- [References](#references)
+- [Tags](#tags)
 
-## Deployment
+## Detailed description
 
-Replace `<NAMESPACE>` and `<RELEASE_NAME>` with your values.
+Anti-money laundering (AML) is the set of processes financial institutions use to detect suspicious activity, investigate potential financial crime, and support regulatory compliance. AML investigations require analysts to move quickly through large volumes of information while still following strict internal procedures and compliance requirements. Investigators often need to pull together context from multiple sources, including case notes, internal policies, sanctions guidance, procedural documentation, and other enterprise records. As a result, even routine investigative tasks can become time-consuming because the work depends on finding and connecting the right information across fragmented systems.
 
-```bash
-export NGC_API_KEY="nvapi-..."
-export HF_TOKEN=""
+This quickstart demonstrates how a Retrieval-Augmented Generation (RAG) application can help accelerate anti-money laundering investigation workflows by grounding AI responses in trusted enterprise content. Rather than generating answers from model knowledge alone, the application retrieves relevant context at query time and uses it to support more informed, document-based responses. This can help analysts more quickly review policies, gather investigation context, summarize relevant materials, and support follow-up work around suspicious activity cases.
 
-helm repo add nvidia https://helm.ngc.nvidia.com/nvidia/nemo-microservices \
-  --username '$oauthtoken' \
-  --password $NGC_API_KEY
-helm repo update
+Built as a customized version of the NVIDIA RAG blueprint for Red Hat AI, this application shows how AML investigation workflows can run with NVIDIA models on an enterprise-ready AI platform. It highlights how teams can adapt a proven RAG pattern for hybrid cloud environments while aligning with operational needs such as governance, observability, and scalable model serving.
 
-helm upgrade --install <RELEASE_NAME> ./helm \
-  -n <NAMESPACE> \
-  --create-namespace \
-  --set nvidiaApiKey.password=$NGC_API_KEY \
-  --set secret.hf_token=$HF_TOKEN
+### See it in action 
 
-oc adm policy add-scc-to-user anyuid -z default -n <NAMESPACE>
-oc adm policy add-scc-to-user anyuid -z <RELEASE_NAME>-nv-ingest -n <NAMESPACE>
-oc adm policy add-scc-to-user anyuid -z ingestor-server -n <NAMESPACE>
+### Architecture diagrams
+
+## Requirements
+
+### Minimum hardware requirements 
+
+#### vLLM Model Requirements
+
+- Llama-3_3-Nemotron-Super-49B-v1_5 (LLM): 4 NVIDIA GPUs with 48GB VRAM (see NVIDIA docs for more information)
+- NVIDIA-Nemotron-Nano-12B-v2-VL-BF16 (VLM): 1 NVIDIA GPU with 48GB VRAM (see NVIDIA docs for more information)
+- llama-nemotron-embed-1b-v2 (Embedding): 1 NVIDIA GPU with 8GB VRAM (see NVIDIA docs for more information)
+- llama-nemotron-rerank-1b-v2 (Reranking): 1 NVIDIA GPU with 8GB VRAM (see NVIDIA docs for more information)
+
+**Note**: This quickstart was tested on a single node with 8 NVIDIA H100 GPUs.
+
+#### Storage
+
+- At least 200 GB of disk space is needed across node(s) for model downloads, images, and vector data.
+
+### Minimum software requirements
+
+- Red Hat OpenShift Container Platform v4.21
+- Red Hat OpenShift AI v3.3
+- NVIDIA GPU Operator (tested w/ v25.10.)
+- S3-compatible object storage
+- Helm CLI: 3.x
+- OpenShift Client CLI
+- NGC API key
+  - With appropriate access to hosted models leveraged in deployment
+- HuggingFace token for model weight downloads
+
+### Required user permissions
+
+- cluster-admin or SCC management rights
+  - Required to grant the anyuid Security Context Constraint to three service accounts: default, <release>-nv-ingest, and ingestor-server as part of the helm deployment.
+
+## Deploy
+
+The following instructions will easily deploy the quickstart to your Red Hat AI environment using helm charts. 
+
+### Prerequisites
+
+- OpenShift cluster
+- OpenShift cluster has GPUs available
+- OpenShift AI has a datasciencecluster resource with kserve and dashboard resources, at minimum, set to managed.
+- The NVIDIA GPU Operator is installed and configured with a ClusterPolicy to configure the driver
+- OpenShift Data Foundation: NooBaa object storage with openshift-storage.noobaa.io StorageClass
+
+### Install
+
+1. git clone quickstart repository
+```
+git clone https://github.com/rh-ai-quickstart/aml-rag-nvidia
 ```
 
-## S3 Object Storage (ObjectBucketClaim)
-
-The chart uses an ODF **ObjectBucketClaim** (OBC) to provision an S3-compatible bucket
-through NooBaa. This bucket is used by nv-ingest, Milvus, and the ingestor-server for
-object storage.
-
-### OBC Configuration 
-
-When `objectStorage.odf.objectBucketClaim.enabled` is `true` (the default), the chart
-creates an `ObjectBucketClaim` resource:
-
-```yaml
-apiVersion: objectbucket.io/v1alpha1
-kind: ObjectBucketClaim
-metadata:
-  name: default-bucket
-spec:
-  bucketName: default-bucket
-  storageClassName: openshift-storage.noobaa.io
+2. cd into the quickstart directory
+```
+cd aml-rag-nvidia
 ```
 
-Once ODF binds the claim, it **automatically generates** two resources in the same
-namespace with the same name as the OBC (`default-bucket` by default):
-
-| Resource | Keys | Purpose |
-|----------|------|---------|
-| **Secret** | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | S3 credentials |
-| **ConfigMap** | `BUCKET_HOST`, `BUCKET_PORT`, `BUCKET_NAME` | S3 endpoint and bucket name |
-
-These resources do not exist until ODF finishes provisioning the bucket, which
-introduces a timing dependency for services that consume them.
-
-### OBC values
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `objectStorage.odf.objectBucketClaim.enabled` | `true` | Create the OBC resource |
-| `objectStorage.odf.objectBucketClaim.name` | `default-bucket` | OBC name (also the name of the generated Secret and ConfigMap) |
-| `objectStorage.odf.objectBucketClaim.bucketName` | `default-bucket` | Requested S3 bucket name |
-| `objectStorage.odf.objectBucketClaim.storageClassName` | `openshift-storage.noobaa.io` | ODF storage class |
-
-### Services that consume OBC credentials
-
-Three services inject the OBC Secret and ConfigMap into their environment:
-
-- **ingestor-server** -- Uses `envFrom` to inject the OBC Secret/ConfigMap, then maps them to
-  `MINIO_ACCESSKEY`, `MINIO_SECRETKEY`, `MINIO_ENDPOINT`, `MINIO_BUCKET`, and
-  `NVINGEST_MINIO_BUCKET` in its startup command.
-
-- **nv-ingest** -- Uses `extraEnvFrom` to inject the OBC Secret/ConfigMap directly.
-  The `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BUCKET_HOST`, `BUCKET_PORT`, and
-  `BUCKET_NAME` env vars are available to the nv-ingest container as-is.
-
-- **Milvus standalone** -- Uses `extraEnv` with `valueFrom` references to map individual keys
-  from the OBC Secret/ConfigMap to Milvus-specific env vars (`MINIO_ADDRESS`,
-  `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET_NAME`). The built-in
-  Milvus MinIO sub-chart is disabled (`minio.enabled: false`) in favor of ODF.
-
-### How services wait for the OBC
-
-The OBC Secret and ConfigMap are created asynchronously by ODF, so they may not exist
-when pods first start. Each service handles this differently:
-
-- **ingestor-server** -- Uses a `wait-for-obc-secret` init container (`bitnami/kubectl`)
-  that polls for the Secret and ConfigMap every 2 seconds. The chart creates a dedicated
-  ServiceAccount, Role, and RoleBinding to grant it `get` access to these resources.
-- **nv-ingest** and **Milvus** -- Reference the OBC Secret/ConfigMap via `envFrom` /
-  `valueFrom` directly; Kubernetes blocks pod startup until the referenced resources exist.
-
-### AWS CLI tagging pod
-
-When both `awscliPod.enabled` and the OBC are enabled, the chart deploys a one-shot Pod
-(`awscli-add-tag`) that applies S3 bucket tags using the AWS CLI. It consumes OBC
-credentials via `envFrom` and runs:
-
-```bash
-aws s3api put-bucket-tagging \
-  --endpoint-url "$SCHEME://$BUCKET_HOST:$BUCKET_PORT" \
-  --no-verify-ssl \
-  --bucket "$BUCKET_NAME" \
-  --tagging "TagSet=[{Key=Environment,Value=dev}]"
+3. Ensure you are logged into your OpenShift AI cluster as a cluster-admin user, such as `kube:admin` or `system:admin`:
+```
+oc whoami
 ```
 
-Tagging is configurable via `awscliPod.tagging`.
+4. Set environment variables for secrets:
 
-### Disabling the OBC
-
-To use an external S3-compatible store instead of ODF, set:
-
-```yaml
-objectStorage:
-  odf:
-    objectBucketClaim:
-      enabled: false
+```
+export HF_TOKEN={insert_token}
+export NGC_API_KEY=”nvapi-...”
 ```
 
-You will then need to provide `MINIO_*` environment variables (or equivalent) to
-ingestor-server, nv-ingest, and Milvus manually.
+5. Run helm install commands
 
-## Key Values
-
-| Parameter | Description |
-|-----------|-------------|
-| `nvidiaApiKey.password` | NGC API key (image pull + NGC_API_KEY) |
-| `secret.hf_token` | HuggingFace token |
-| `objectStorage.odf.objectBucketClaim.enabled` | Enable OBC-based S3 storage (default `true`) |
-| `objectStorage.odf.objectBucketClaim.name` | OBC resource name (default `default-bucket`) |
-| `objectStorage.odf.objectBucketClaim.storageClassName` | ODF storage class (default `openshift-storage.noobaa.io`) |
-| `awscliPod.enabled` | Deploy bucket-tagging pod (default `true`) |
-
-## Setting up secret for NGC API key to pull NIMs
-
-```bash
-export API_KEY=<paste>
-cat << EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ngc-api
-  namespace: rag
-type: kubernetes.io/dockerconfigjson
-stringData:
-  .dockerconfigjson: >
-    {"auths": {"nvcr.io": {"auth": "$(echo -n '$oauthuser:'"$API_KEY" | base64 -w0)"}}}
-  NGC_API_KEY: $API_KEY
-  NVIDIA_API_KEY: $API_KEY
-EOF
+Deploy model-serving chart
+```
+helm install model-serving ./charts/model-serving --set secret.hf_token=$HF_TOKEN --namespace rag --create-namespace
 ```
 
-# ingest chart when ngc key is pre-deployed as a secret
-helm dependency update charts/ingest
-helm install ingest ./charts/ingest \
-  --set nvidiaApiKey.create=false \
-  --namespace rag
+Deploy ingest chart
+```
+helm dependency update ./charts/ingest
+helm install ingest ./charts/ingest --set nvidiaApiKey.password=$NGC_API_KEY --namespace rag
+```
+Deploy rag-server chart
+```
+helm install rag-server ./charts/rag-server --namespace rag
+```
 
-https://rag-frontend-rag.apps.7f72a1d8-6770-218b-52f7-75fd7ddb7e3c.nvidialaunchpad.com/
+Deploy frontend
+```
+helm install frontend ./charts/frontend --namespace rag
+```
+
+#### Verify installation
+
+Check all deployed pods are running
+```
+oc get pods -n rag
+```
+
+### Usage
 
 
-# model-serving chart
-export HF_TOKEN=
-helm install model-serving ./charts/model-serving \
-  --set secret.hf_token=$HF_TOKEN \
-  --namespace rag
 
+### Delete
 
+Delete all helm deployments
+```
+helm uninstall ingest model-serving rag-server frontend -n rag
+```
 
+Delete all PVCs in rag namespace
+```
+oc get pvc -n rag
+oc delete pvc --all -n rag
+```
 
+(Optional) Delete the entire namespace
+```
+oc delete namespace rag
+```
+
+## References 
+
+- [vLLM](https://vllm.ai/): The High-Throughput and Memory-Efficient inference and serving engine for LLMs.
+- [NVIDIA Nemotron](https://developer.nvidia.com/nemotron): a family of open models with open weights, training data, and recipes, delivering leading efficiency and accuracy for building specialized AI agents.
+- [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/index.html): uses the operator framework within Kubernetes to automate the management of all NVIDIA software components needed to provision
+  GPU.
+- [NVIDIA RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag): The official RAG blueprint from which this quickstart is based from.
+
+## Tags
+
+- **Product**: Red Hat AI Enterprise
+- **Use case**: Anti-money laundering
+- **Industry**: Adopt and scale AI

@@ -28,7 +28,7 @@ Built as a customized version of the NVIDIA RAG blueprint for Red Hat AI, this a
 
 ### See it in action 
 
-
+![Using the RAG application for AML investigations](docs/images/seeitinaction.png)
 
 ### Architecture diagrams
 

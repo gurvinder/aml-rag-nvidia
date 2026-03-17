@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/noeloc/redhat-bp-ui
-  tag: "latest"
+  tag: "christmas"
   pullPolicy: Always
 
 imagePullSecret:

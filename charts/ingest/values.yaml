@@ -189,7 +189,7 @@ nv-ingest:
     RAY_num_server_call_thread: "1"
     RAY_worker_num_grpc_internal_threads: "1"
     # Point to llm-service models (port 8080)
-    EMBEDDING_NIM_ENDPOINT: "http://nemoretriever-embedding-ms-predictor:8080/v1"
+    EMBEDDING_NIM_ENDPOINT: "https://integrate.api.nvidia.com/v1/embeddings"
     EMBEDDING_NIM_MODEL_NAME: "nvidia/llama-nemotron-embed-1b-v2"
 
     # Ensure the below variable matches your release name (must be hardcoded due to nv-ingest subchart)
